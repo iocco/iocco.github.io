@@ -8,8 +8,81 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
+# Processing
 
-### References
+## Getting the data
+
+Download and load
+```{r cache=TRUE}
+download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv", "pml-training.csv", method="curl")
+download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv", "pml-testing.csv", method="curl")
+
+pml_training <- read.csv("pml-training.csv")
+pml_testing <- read.csv("pml-testing.csv")
+```
+
+## Preprocess
+
+Libraries needed
+
+```{r echo=FALSE}
+library(dplyr, quietly = TRUE, warn.conflicts = FALSE)
+library(caret, quietly = TRUE, warn.conflicts = FALSE)
+```
+
+We dont want to deal with all NA so we eliminate that columns, because they dont provide much information,
+then we keep on our testing datasets the same variables, but one since `classe` is missing.
+```{r}
+clean_training <- pml_training %>%
+  select_if(function(x) is.numeric(x)) %>%
+  select_if(function(x) all(!is.na(x))) %>%
+  select(-X, -raw_timestamp_part_1, -raw_timestamp_part_2)
+
+clean_testing <- pml_testing[ , names(pml_testing) %in% names(clean_training)]
+clean_training$classe <- pml_training$classe
+
+```
+
+Since classe is missing in the testing dataset, we divide our training dataset,
+to be able to evaluate our model.
+
+```{r}
+inTrain <- createDataPartition(y=clean_training$classe,p=0.75, list=FALSE)
+testing <- clean_training[-inTrain,]
+training <- clean_training[inTrain,]
+```
+
+
+## Model Building
+
+Because of the computing time, we build a random forest with the 10 more relevant variables
+
+```{r cache=TRUE}
+preProc <- preProcess(training[,-54],method="pca",pcaComp = 10)
+trainPC <- predict(preProc,training[,-54])
+rFor <- train(x = trainPC, y = factor(training$classe),method="rf", 
+                trControl = trainControl(method="cv"),number=3)
+```
+
+Now we test it against our testing and evaluate the accuracy
+
+```{r}
+  testPC <- predict(preProc, testing[,-54])
+  accu <- confusionMatrix(factor(testing$classe),predict(rFor,testPC))
+```
+
+Which is:  `r accu$overall[1]`.
+
+## Results
+
+We take our original testing vector and we predict the classes.
+
+```{r}
+ testFinal <- predict(preProc, clean_testing)
+ predict(rFor,testFinal)
+```
+
+## References
 
 Ugulino, W.; Cardador, D.; Vega, K.; Velloso, E.; Milidiu, R.; Fuks, H. Wearable Computing: Accelerometers' Data Classification of Body Postures and Movements. Proceedings of 21st Brazilian Symposium on Artificial Intelligence. Advances in Artificial Intelligence - SBIA 2012. In: Lecture Notes in Computer Science. , pp. 52-61. Curitiba, PR: Springer Berlin / Heidelberg, 2012. ISBN 978-3-642-34458-9. DOI: 10.1007/978-3-642-34459-6_6.
 Cited by 2 (Google Scholar) 

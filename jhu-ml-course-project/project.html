@@ -171,9 +171,57 @@ pre code {
 </div>
 
 
-<div id="references" class="section level3">
-<h3>References</h3>
+<div id="processing" class="section level1">
+<h1>Processing</h1>
+<div id="getting-the-data" class="section level2">
+<h2>Getting the data</h2>
+<p>Download and load</p>
+<pre class="r"><code>download.file(&quot;https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv&quot;, &quot;pml-training.csv&quot;, method=&quot;curl&quot;)
+download.file(&quot;https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv&quot;, &quot;pml-testing.csv&quot;, method=&quot;curl&quot;)
+
+pml_training &lt;- read.csv(&quot;pml-training.csv&quot;)
+pml_testing &lt;- read.csv(&quot;pml-testing.csv&quot;)</code></pre>
+</div>
+<div id="preprocess" class="section level2">
+<h2>Preprocess</h2>
+<p>Libraries needed</p>
+<p>We dont want to deal with all NA so we eliminate that columns, because they dont provide much information, then we keep on our testing datasets the same variables, but one since <code>classe</code> is missing.</p>
+<pre class="r"><code>clean_training &lt;- pml_training %&gt;%
+  select_if(function(x) is.numeric(x)) %&gt;%
+  select_if(function(x) all(!is.na(x))) %&gt;%
+  select(-X, -raw_timestamp_part_1, -raw_timestamp_part_2)
+
+clean_testing &lt;- pml_testing[ , names(pml_testing) %in% names(clean_training)]
+clean_training$classe &lt;- pml_training$classe</code></pre>
+<p>Since classe is missing in the testing dataset, we divide our training dataset, to be able to evaluate our model.</p>
+<pre class="r"><code>inTrain &lt;- createDataPartition(y=clean_training$classe,p=0.75, list=FALSE)
+testing &lt;- clean_training[-inTrain,]
+training &lt;- clean_training[inTrain,]</code></pre>
+</div>
+<div id="model-building" class="section level2">
+<h2>Model Building</h2>
+<p>Because of the computing time, we build a random forest with the 10 more relevant variables</p>
+<pre class="r"><code>preProc &lt;- preProcess(training[,-54],method=&quot;pca&quot;,pcaComp = 10)
+trainPC &lt;- predict(preProc,training[,-54])
+rFor &lt;- train(x = trainPC, y = factor(training$classe),method=&quot;rf&quot;, 
+                trControl = trainControl(method=&quot;cv&quot;),number=3)</code></pre>
+<p>Now we test it against our testing and evaluate the accuracy</p>
+<pre class="r"><code>  testPC &lt;- predict(preProc, testing[,-54])
+  accu &lt;- confusionMatrix(factor(testing$classe),predict(rFor,testPC))</code></pre>
+<p>Which is: 0.9647227.</p>
+</div>
+<div id="results" class="section level2">
+<h2>Results</h2>
+<p>We take our original testing vector and we predict the classes.</p>
+<pre class="r"><code> testFinal &lt;- predict(preProc, clean_testing)
+ predict(rFor,testFinal)</code></pre>
+<pre><code>##  [1] B A B A A E D B A A B C B A E E A B B B
+## Levels: A B C D E</code></pre>
+</div>
+<div id="references" class="section level2">
+<h2>References</h2>
 <p>Ugulino, W.; Cardador, D.; Vega, K.; Velloso, E.; Milidiu, R.; Fuks, H. Wearable Computing: Accelerometers’ Data Classification of Body Postures and Movements. Proceedings of 21st Brazilian Symposium on Artificial Intelligence. Advances in Artificial Intelligence - SBIA 2012. In: Lecture Notes in Computer Science. , pp. 52-61. Curitiba, PR: Springer Berlin / Heidelberg, 2012. ISBN 978-3-642-34458-9. DOI: 10.1007/978-3-642-34459-6_6. Cited by 2 (Google Scholar)</p>
+</div>
 </div>
 
 
