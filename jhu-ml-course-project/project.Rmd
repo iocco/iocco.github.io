@@ -25,7 +25,7 @@ pml_testing <- read.csv("pml-testing.csv")
 
 Libraries needed
 
-```{r echo=FALSE}
+```{r}
 library(dplyr, quietly = TRUE, warn.conflicts = FALSE)
 library(caret, quietly = TRUE, warn.conflicts = FALSE)
 ```
@@ -44,7 +44,7 @@ clean_training$classe <- pml_training$classe
 ```
 
 Since classe is missing in the testing dataset, we divide our training dataset,
-to be able to evaluate our model.
+to be able to evaluate our model with cross validation
 
 ```{r}
 inTrain <- createDataPartition(y=clean_training$classe,p=0.75, list=FALSE)
@@ -57,14 +57,14 @@ training <- clean_training[inTrain,]
 
 Because of the computing time, we build a random forest with the 10 more relevant variables
 
-```{r cache=TRUE}
+```{r}
 preProc <- preProcess(training[,-54],method="pca",pcaComp = 10)
 trainPC <- predict(preProc,training[,-54])
 rFor <- train(x = trainPC, y = factor(training$classe),method="rf", 
                 trControl = trainControl(method="cv"),number=3)
 ```
 
-Now we test it against our testing and evaluate the accuracy
+Now we cross validate it against our testing and evaluate the accuracy
 
 ```{r}
   testPC <- predict(preProc, testing[,-54])

@@ -185,6 +185,8 @@ pml_testing &lt;- read.csv(&quot;pml-testing.csv&quot;)</code></pre>
 <div id="preprocess" class="section level2">
 <h2>Preprocess</h2>
 <p>Libraries needed</p>
+<pre class="r"><code>library(dplyr, quietly = TRUE, warn.conflicts = FALSE)
+library(caret, quietly = TRUE, warn.conflicts = FALSE)</code></pre>
 <p>We dont want to deal with all NA so we eliminate that columns, because they dont provide much information, then we keep on our testing datasets the same variables, but one since <code>classe</code> is missing.</p>
 <pre class="r"><code>clean_training &lt;- pml_training %&gt;%
   select_if(function(x) is.numeric(x)) %&gt;%
@@ -193,7 +195,7 @@ pml_testing &lt;- read.csv(&quot;pml-testing.csv&quot;)</code></pre>
 
 clean_testing &lt;- pml_testing[ , names(pml_testing) %in% names(clean_training)]
 clean_training$classe &lt;- pml_training$classe</code></pre>
-<p>Since classe is missing in the testing dataset, we divide our training dataset, to be able to evaluate our model.</p>
+<p>Since classe is missing in the testing dataset, we divide our training dataset, to be able to evaluate our model with cross validation</p>
 <pre class="r"><code>inTrain &lt;- createDataPartition(y=clean_training$classe,p=0.75, list=FALSE)
 testing &lt;- clean_training[-inTrain,]
 training &lt;- clean_training[inTrain,]</code></pre>
@@ -205,17 +207,17 @@ training &lt;- clean_training[inTrain,]</code></pre>
 trainPC &lt;- predict(preProc,training[,-54])
 rFor &lt;- train(x = trainPC, y = factor(training$classe),method=&quot;rf&quot;, 
                 trControl = trainControl(method=&quot;cv&quot;),number=3)</code></pre>
-<p>Now we test it against our testing and evaluate the accuracy</p>
+<p>Now we cross validate it against our testing and evaluate the accuracy</p>
 <pre class="r"><code>  testPC &lt;- predict(preProc, testing[,-54])
   accu &lt;- confusionMatrix(factor(testing$classe),predict(rFor,testPC))</code></pre>
-<p>Which is: 0.9647227.</p>
+<p>Which is: 0.9616639.</p>
 </div>
 <div id="results" class="section level2">
 <h2>Results</h2>
 <p>We take our original testing vector and we predict the classes.</p>
 <pre class="r"><code> testFinal &lt;- predict(preProc, clean_testing)
  predict(rFor,testFinal)</code></pre>
-<pre><code>##  [1] B A B A A E D B A A B C B A E E A B B B
+<pre><code>##  [1] B A A A A E D B A A A C B A E E A B B B
 ## Levels: A B C D E</code></pre>
 </div>
 <div id="references" class="section level2">
