@@ -1,0 +1,17 @@
+---
+title: "Plotly Demo"
+author: "Pablo Iocco"
+date: "1/28/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(warning = FALSE)
+knitr::opts_chunk$set(message = FALSE)
+```
+
+```{r, echo=FALSE}
+library(plotly, quietly = TRUE, warn.conflicts = FALSE)
+plot_ly(mtcars, x=~wt, y=~mpg, mode="markers")
+```
