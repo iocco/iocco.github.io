@@ -1,0 +1,13 @@
+name: cars-regression-project
+title: cars-regression-project
+username:
+account: iocco
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 5536723
+bundleId: 5520503
+url: https://iocco.shinyapps.io/cars-regression-project/
+when: 1643432300.27303
+lastSyncTime: 1643432300.27304
+asMultiple: FALSE
+asStatic: FALSE
