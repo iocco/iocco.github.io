@@ -1,0 +1,128 @@
+---
+title: "Exploratory Data Analysis"
+author: "Pablo Iocco"
+date: "2/1/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Getting the data
+
+```{r download-data, cache=TRUE}
+ url  <- "http://d396qusza40orc.cloudfront.net/dsscapstone/dataset/Coursera-SwiftKey.zip"
+ if (!file.exists("coursera-swiftkey.zip")){
+   download.file(url, destfile="Coursera-Swiftkey.zip")
+ }
+theFileList=c("final/en_US/en_US.twitter.txt", "final/en_US/en_US.news.txt","final/en_US/en_US.blogs.txt") 
+unzip("Coursera-Swiftkey.zip", files = theFileList, exdir="en_US", overwrite=TRUE, junkpaths=TRUE)
+```
+
+## Basic Summary of the files
+
+
+```{r summary, cache=TRUE, warning=FALSE}
+library(tokenizers, quietly = TRUE, warn.conflicts = FALSE)
+conblog <- file("en_US/en_US.blogs.txt", "r") 
+blog <-readLines(conblog,encoding="latin1")
+close(conblog)
+
+conbnews <- file("en_US/en_US.news.txt", "r") 
+news<-readLines(conbnews ,encoding="latin1")
+close(conbnews)
+
+conbtw<-file("en_US/en_US.twitter.txt", "r")
+twitter<-readLines(conbtw,encoding="latin1")
+close(conbtw)
+
+labels <- c("en_US.blogs.txt", "en_US.news.txt", "en_US.twitter.txt")
+line_counts <- c(length(blog), length(news), length(twitter))
+word_counts <- c(sum(count_words(blog)),sum(count_words(news)),sum(count_words(twitter)))
+summary = data_frame(labels=labels, lines=line_counts, words=word_counts)
+summary
+```
+
+## Sampling
+We create 3 variables, *news*, *blogs* and *twitter* which contains samples of 1000 entries
+of the files `en_US.news.txt`, `en_US.blogs.txt` and `en_US.twitter.txt` respectively.
+```{r r sample-data, cache=TRUE, warning=FALSE}
+news <- sample(news, 1000)
+blog <- sample(blog, 1000)
+twitter <- sample(twitter, 1000)
+```
+
+## Tokenize and profanity remove
+
+We get a profanity list that allow us to filter bad words
+```{r profanity-download}
+ if (!file.exists("profanity.txt")){
+   download.file("http://www.cs.cmu.edu/~biglou/resources/bad-words.txt", destfile="profanity.txt")
+ }
+conprofane <- file("profanity.txt", "r")
+profane_words <- readLines(conprofane)
+```
+
+Now we join the sources of our sample and we tokenize to perform an exploratory 
+analysis.
+```{r vectorize, warning=FALSE, message=FALSE}
+library(qdap, quietly = TRUE, warn.conflicts = FALSE)
+join_sources <- paste(blog,news,twitter)  
+join_sources <- sent_detect(join_sources, language = "en", model = NULL) 
+```
+
+We will use the package [tidytext](https://github.com/juliasilge/tidytext) to
+explore the data and see the most used terms. We will use the news dataset to explore.
+```{r mining, warning=FALSE, message=FALSE, cache=TRUE}
+library(dplyr, quietly = TRUE, warn.conflicts = FALSE)
+library(tidytext, quietly = TRUE, warn.conflicts = FALSE)
+text_df <- data_frame(Text = join_sources) %>% 
+  unnest_tokens(output = word, input = Text)  %>%
+  anti_join(stop_words) %>%
+  filter(!word %in% profane_words) %>%
+  filter(grepl("^[a-zA-Z]+$", word)) %>%
+  count(word, sort = TRUE)
+
+total_words<- sum(text_df$n)
+text_df <- text_df %>%
+  mutate(freq = n/total_words)
+```
+There are **`r total_words` words** Now will plot the 20 tops words.
+
+```{r freqplot}
+library(ggplot2, quietly = TRUE, warn.conflicts = FALSE)
+library(dplyr, quietly = TRUE, warn.conflicts = FALSE)
+top_20 <- text_df %>% 
+  select(freq, word) %>%
+  top_n(20, freq)
+
+ggplot(top_20, aes(word,freq)) +
+  geom_col(fill = "darkred") + 
+  coord_flip() +
+  labs(x="Word", y="Frequency", title="Frequent words")  +
+  geom_text(aes(label = round(freq, 4), hjust = 1.2, colour = "white", fontface = "bold")) +
+  theme(plot.title = element_text(hjust = 0.5),
+        axis.title.x = element_text(face="bold", colour = "darkblue", size=12),
+        axis.title.y = element_text(face="bold", colour = "darkblue", size=12))
+```
+
+So must popular words are *time* and *day* which is expected from news and blog sources,
+and also sentiments like `love` which is what you expect in twitter
+
+We see that top 10 words account for **`r round(sum((text_df %>% top_n(10, freq))$freq)*100, 2)`%**
+
+Top 100 words account for **`r round(sum((text_df %>% top_n(100, freq))$freq)*100, 2)`%**
+
+Top 1000 words account for **`r round(sum((text_df %>% top_n(1000, freq))$freq)*100, 2)`%**
+
+Top 2000 words account for **`r round(sum((text_df %>% top_n(2000, freq))$freq)*100, 2)`%**
+
+## Next Steps
+
+In the next report we will work on:
+
+    N-Grams for full data sets
+    Strategy for combination that doesnt exists on N-Grams
+    Optimize model for low memory utilization
+    Implement app on Shiny
